@@ -15,33 +15,23 @@ public class FunctionImage
 {
 	// ATTRIBUTES	----------------------------------------------
 	
-	private Function[] rgbFunctions;
+	private Function[] functions;
 	private FunctionImage mother, father;
 	private int childrenKilled, childrenSpawned, fitnessBoost;
 	
 	
 	// CONSTRUCTOR	----------------------------------------------
 	
-	/**
-	 * Creates a new FunctionImage based on three given functions
-	 * 
-	 * @param redFunction The function that will produce the red colour
-	 * @param greenFunction The function that will produce the green colour
-	 * @param blueFunction The function that will produce the blue colour
-	 */
-	public FunctionImage(Function redFunction, Function greenFunction, Function blueFunction)
+	private FunctionImage(Function[] functions, FunctionImage mother, FunctionImage father)
 	{
 		// Initializes attributes
-		this.mother = null;
-		this.father = null;
+		this.mother = mother;
+		this.father = father;
 		this.childrenKilled = 0;
 		this.childrenSpawned = 0;
 		this.fitnessBoost = 0;
 		
-		this.rgbFunctions = new Function[3];
-		this.rgbFunctions[0] = redFunction;
-		this.rgbFunctions[1] = greenFunction;
-		this.rgbFunctions[2] = blueFunction;
+		this.functions = functions;
 	}
 
 	/**
@@ -58,13 +48,15 @@ public class FunctionImage
 		this.childrenKilled = 0;
 		this.childrenSpawned = 0;
 		
-		this.rgbFunctions = new Function[3];
-		this.rgbFunctions[0] = 
-				SimpleFunctionGenerator.createSimpleFunction(maxParameterAmount, null);
-		this.rgbFunctions[1] = 
-				SimpleFunctionGenerator.createSimpleFunction(maxParameterAmount, null);
-		this.rgbFunctions[2] = 
-				SimpleFunctionGenerator.createSimpleFunction(maxParameterAmount, null);
+		this.functions = new Function[4];
+		this.functions[0] = SimpleFunctionGenerator.createSimpleFunction(
+				maxParameterAmount, null);
+		for (int i = 1; i < this.functions.length; i++)
+		{
+			// RGB have reference function value as the last parameter
+			this.functions[i] = SimpleFunctionGenerator.createSimpleFunction(
+					maxParameterAmount + 1, null);
+		}
 	}
 	
 	
@@ -75,9 +67,9 @@ public class FunctionImage
 	 */
 	public void simplify()
 	{
-		for (int i = 0; i < this.rgbFunctions.length; i++)
+		for (int i = 0; i < this.functions.length; i++)
 		{
-			this.rgbFunctions[i].simplify();
+			this.functions[i].simplify();
 		}
 	}
 	
@@ -135,7 +127,7 @@ public class FunctionImage
 		int complexity = 3;
 		for (int i = 0; i < 3; i++)
 		{
-			complexity += this.rgbFunctions[i].getSubFunctionAmount();
+			complexity += this.functions[i].getSubFunctionAmount();
 		}
 		
 		return complexity;
@@ -146,8 +138,13 @@ public class FunctionImage
 	 */
 	public FunctionImage createCopy()
 	{
-		return new FunctionImage(this.rgbFunctions[0].createCopy(), 
-				this.rgbFunctions[1].createCopy(), this.rgbFunctions[2].createCopy());
+		Function[] copies = new Function[this.functions.length];
+		for (int i = 0; i < copies.length; i++)
+		{
+			copies[i] = this.functions[i].createCopy();
+		}
+		
+		return new FunctionImage(copies, this.mother, this.father);
 	}
 	
 	/**
@@ -158,13 +155,23 @@ public class FunctionImage
 	 */
 	public int getRGB(double[] args)
 	{
+		double[] modifierArgs = new double[args.length + 1];
+		for (int i = 0; i < args.length; i++)
+		{
+			modifierArgs[i] = args[i];
+		}
+		double referenceValue = this.functions[0].getValue(args) % 255;
+		if (referenceValue < 0)
+			referenceValue += 255;
+		modifierArgs[args.length] = referenceValue;
+		
 		int[] rgb = new int[3];
 		for (int i = 0; i < 3; i++)
 		{
-			rgb[i] = (int) this.rgbFunctions[i].getValue(args) % 255;
+			rgb[i] = (int) this.functions[i + 1].getValue(modifierArgs) % 255;
 			
 			if (rgb[i] < 0)
-				rgb[i] *= -1;
+				rgb[i] += 255;
 		}
 		
 		return new Color(rgb[0], rgb[1], rgb[2]).getRGB();
@@ -178,47 +185,47 @@ public class FunctionImage
 	public FunctionImage createChild(FunctionImage father)
 	{
 		Random random = new Random();
-		FunctionImage child = createCopy();
+		
+		Function[] generatedFunctions = new Function[this.functions.length];
+		// The reference function will always be created the same way
+		generatedFunctions[0] = this.functions[0].createChild(father.functions[0]);
 		
 		// Any colour function may mate with any colour function, most likely with 
 		// the same colour. Father's functions act as the father most of the time
-		for (int i = 0; i < 3; i++)
+		for (int i = 1; i < 4; i++)
 		{
-			// Sometimes the functions won't mate at all
+			// Sometimes the functions won't mate at all (in which case uses the mother function)
 			if (random.nextDouble() < 0.2)
-				continue;
+				generatedFunctions[i] = this.functions[i].createCopy();
 			
 			// Usually the father is of the same colour as the mother
 			int fatherColour = i;
 			if (random.nextDouble() < 0.4)
-				fatherColour = random.nextInt(3);
+				fatherColour = 1 + random.nextInt(3);
 			
 			// Usually the function mother is from the image mother and father from image father
 			Function functionMother = null;
 			Function functionFather = null;
 			if (random.nextDouble() < 0.8)
 			{
-				functionMother = this.rgbFunctions[i];
-				functionFather = father.rgbFunctions[fatherColour];
+				functionMother = this.functions[i];
+				functionFather = father.functions[fatherColour];
 			}
 			else
 			{
-				functionMother = father.rgbFunctions[i];
-				functionFather = this.rgbFunctions[fatherColour];
+				functionMother = father.functions[i];
+				functionFather = this.functions[fatherColour];
 			}
 			
 			// The child image will use the produced child function to calculate the colour
-			child.rgbFunctions[i] = functionMother.createChild(functionFather);
+			generatedFunctions[i] = functionMother.createChild(functionFather);
 		}
 		
-		// Informs the child about their parents
-		child.father = father;
-		child.mother = this;
 		// Counts the amount of created children
 		this.childrenSpawned ++;
 		father.childrenSpawned ++;
 		
-		return child;
+		return new FunctionImage(generatedFunctions, this, father);
 	}
 	
 	/**
@@ -229,37 +236,11 @@ public class FunctionImage
 		// Mutates all of the functions
 		for (int i = 0; i < 3; i++)
 		{
-			this.rgbFunctions[i].mutate();
+			this.functions[i].mutate();
 			// If the function grew upwards, goes to the top
-			this.rgbFunctions[i] = this.rgbFunctions[i].getTopFunction();
+			this.functions[i] = this.functions[i].getTopFunction();
 		}
 	}
-	
-	/**
-	 * Creates a new function image as a child for the two function images
-	 * 
-	 * @param image1 The first image parent
-	 * @param image2 The second image parent
-	 * @return A child created by the two parents
-	 */
-	/*
-	private static FunctionImage createChild(FunctionImage image1, FunctionImage image2)
-	{
-		// Randomly decides, which image will be ther mother
-		Random random = new Random();
-		FunctionImage mother = image1;
-		FunctionImage father = image2;
-		
-		if (random.nextDouble() < 0.5)
-		{
-			mother = image2;
-			father = image1;
-		}
-		
-		// Produces a child using the parents
-		return mother.createChild(father);
-	}
-	*/
 	
 	/**
 	 * Creates a set of children from a set of parents

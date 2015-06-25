@@ -162,7 +162,7 @@ public abstract class Function
 		Random random = new Random();
 		
 		// If the function is light, it may create a new simple function beside it
-		if (random.nextDouble() < (1 - getSubFunctionAmount() / 150.0) * 0.1)
+		if (random.nextDouble() < (1 - getSubFunctionAmount() / 150.0) * 0.3)
 			new ComplexFunction(this, SimpleFunctionGenerator.createSimpleFunction(2, null), 
 					OperatorGenerator.createRandomOperator(), 
 					FunctionModifier.getRandomModifier(), null);

@@ -1,5 +1,6 @@
 package art_main;
 
+import java.security.InvalidParameterException;
 import java.util.Random;
 
 /**
@@ -39,9 +40,15 @@ public class SimpleFunctionGenerator
 		
 		// 50% Creates a parameter function
 		if (random.nextDouble() < 0.5)
-			return new ParameterFunction(random.nextInt(maxParameterAmount), 
-					FunctionModifier.getRandomModifier(), parent);
-		
+		{
+			int paramIndex = random.nextInt(maxParameterAmount);
+			//if (maxParameterAmount > 2 && random.nextDouble() < 0.3)
+			//	paramIndex = maxParameterAmount - 1;
+			// TODO: For some reason, this causes a nullPointer
+			
+			return new ParameterFunction(paramIndex, FunctionModifier.getRandomModifier(), parent);
+		}
+			
 		// Otherwise it's a constant function
 		double chosen = random.nextDouble();
 		double constant = 0;
@@ -174,7 +181,8 @@ public class SimpleFunctionGenerator
 			{
 				System.err.println("Can't retrieve the " + this.parameterIndex + 
 						". parameter from the given parameter list");
-				return 0;
+				throw new InvalidParameterException();
+				//return 0;
 			}
 			
 			return args[this.parameterIndex];

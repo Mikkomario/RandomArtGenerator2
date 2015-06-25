@@ -26,7 +26,7 @@ public class OperatorGenerator
 	public static Operator createRandomOperator()
 	{
 		Random random = new Random();
-		int chosen = random.nextInt(6);
+		int chosen = random.nextInt(7);
 		
 		if (chosen < 1)
 			return new AdditionOperator(1);
