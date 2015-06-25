@@ -1,14 +1,12 @@
 package art_main;
 
-import java.awt.BorderLayout;
-
-import genesis_graphic.GamePanel;
-import genesis_graphic.GameWindow;
-import omega_world.AreaRelay;
-import arc_bank.MultiMediaHolder;
-import arc_bank.OpenGamePhaseBank;
-import arc_bank.OpenGamePhaseBankHolder;
-import arc_resource.MetaResource;
+import genesis_event.DrawableHandler;
+import genesis_event.HandlerRelay;
+import genesis_event.KeyListenerHandler;
+import genesis_event.MouseListenerHandler;
+import genesis_util.Vector3D;
+import genesis_video.GamePanel;
+import genesis_video.GameWindow;
 
 /**
  * Main is used for starting the program
@@ -45,25 +43,18 @@ public class Main
 	// OTHER METHODS	--------------------------------------
 	
 	private static void start()
-	{
-		// Initializes resources
-		MultiMediaHolder.initializeResourceDatabase(new OpenGamePhaseBankHolder("gamephaseload.txt"));
-		MultiMediaHolder.activateBank(MetaResource.GAMEPHASE, "default", true);
-		
+	{	
 		// Creates new GameWindow & Panels
-		GameWindow window = new GameWindow(1360, 768, "Random Art Generator", true, 30, 10, 
-				false);
-		GamePanel panel = new GamePanel(1360, 768);
-		//panel.disableClear();
-		window.addGamePanel(panel, BorderLayout.CENTER);
+		Vector3D resolution = new Vector3D(1360, 768);
+		GameWindow window = new GameWindow(resolution, "Random Art Generator", true, 30, 10);
+		GamePanel panel = window.getMainPanel().addGamePanel();
 		
-		// Creates areas
-		AreaRelay areaRelay = new AreaRelay(window, panel);
-		areaRelay.addArea("art", OpenGamePhaseBank.getGamePhaseBank("default").getPhase("generate"));
+		// Creates the handlers
+		HandlerRelay handlers = new HandlerRelay();
+		handlers.addHandler(new MouseListenerHandler(false, window.getHandlerRelay()));
+		handlers.addHandler(new KeyListenerHandler(false, window.getHandlerRelay()));
+		handlers.addHandler(new DrawableHandler(false, panel.getDrawer()));
 		
-		// TODO: Starts the game
-		//new AutoChildCreator(areaRelay.getArea("art"));
-		new ArtUpdater(2, 4, areaRelay.getArea("art"));
-		areaRelay.getArea("art").start();
+		new ArtUpdater(resolution, 2, 4, handlers);
 	}
 }

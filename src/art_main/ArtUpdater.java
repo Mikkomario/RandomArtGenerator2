@@ -1,12 +1,18 @@
 package art_main;
 
+import genesis_event.EventSelector;
+import genesis_event.HandlerRelay;
+import genesis_event.KeyEvent;
+import genesis_event.KeyListener;
+import genesis_event.KeyEvent.KeyEventType;
+import genesis_util.StateOperator;
+import genesis_util.Vector3D;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedList;
 
-import genesis_logic.AdvancedKeyListener;
-import omega_world.Area;
-import omega_world.GameObject;
+import omega_util.SimpleGameObject;
 
 /**
  * ArtUpdater lets the user pick some of the created images and generates a new generation 
@@ -15,7 +21,7 @@ import omega_world.GameObject;
  * @author Mikko Hilpinen
  * @since 26.9.2014
  */
-public class ArtUpdater extends GameObject implements AdvancedKeyListener
+public class ArtUpdater extends SimpleGameObject implements KeyListener
 {
 	// ATTRIBUTES	--------------------------------------------------------
 	
@@ -23,7 +29,7 @@ public class ArtUpdater extends GameObject implements AdvancedKeyListener
 	private ArrayList<FunctionImage> children;
 	private FunctionDrawer[] drawers;
 	private int rows, columns;
-	private boolean active;
+	private EventSelector<KeyEvent> selector;
 	
 	
 	// CONSTRUCTOR	---------------------------------------------------------
@@ -31,14 +37,14 @@ public class ArtUpdater extends GameObject implements AdvancedKeyListener
 	/**
 	 * Creates a new ArtUpdater that will automatically generate the first generation of 
 	 * function images
-	 * 
+	 * @param resolution The screen resolution
 	 * @param rows How many rows the of images there will be
 	 * @param columns How many columns of images there will be
-	 * @param area The area where the images will be drawn
+	 * @param handlers The handlers that will handle the updater
 	 */
-	public ArtUpdater(int rows, int columns, Area area)
+	public ArtUpdater(Vector3D resolution, int rows, int columns, HandlerRelay handlers)
 	{
-		super(area);
+		super(handlers);
 		
 		// Initializes attributes
 		this.rows = rows;
@@ -52,63 +58,44 @@ public class ArtUpdater extends GameObject implements AdvancedKeyListener
 		this.parents = new ArrayList<FunctionImage>();
 		this.children = new ArrayList<FunctionImage>();
 		this.drawers = new FunctionDrawer[this.rows * this.columns];
-		int w = 1360 / this.columns;
-		int h = 768 / this.rows;
-		this.active = true;
+		this.selector = KeyEvent.createEventTypeSelector(KeyEventType.PRESSED);
+		
+		int w = resolution.getFirstInt() / this.columns;
+		int h = resolution.getSecondInt() / this.rows;
 		
 		for (int i = 0; i < this.drawers.length; i++)
 		{
 			int x = w / 2 + (i % (this.columns)) * w;
 			int y = h / 2 + i / this.columns * h;
 			
-			System.out.println("Creates a drawer to (" + x + ", " + y + ")");
+			//System.out.println("Creates a drawer to (" + x + ", " + y + ")");
 			
 			this.children.add(new FunctionImage(2));
-			this.drawers[i] = new FunctionDrawer(x, y, w, h, this.children.get(i), this, area);
+			this.drawers[i] = new FunctionDrawer(new Vector3D(x, y), new Vector3D(w, h), 
+					this.children.get(i), this, handlers);
 		}
-		
-		// Adds the object to the handler(s)
-		area.getKeyHandler().addKeyListener(this);
 	}
 	
 	
 	// IMPLEMENTED METHODS	-----------------------------------------------
-
+	
 	@Override
-	public void activate()
+	public EventSelector<KeyEvent> getKeyEventSelector()
 	{
-		this.active = true;
+		return this.selector;
 	}
 
 	@Override
-	public void inactivate()
+	public StateOperator getListensToKeyEventsOperator()
 	{
-		this.active = false;
+		return getIsActiveStateOperator();
 	}
 
 	@Override
-	public boolean isActive()
-	{
-		return this.active;
-	}
-
-	@Override
-	public void onKeyDown(char key, int keyCode, boolean coded, double steps)
-	{
-		// Does nothing
-	}
-
-	@Override
-	public void onKeyPressed(char key, int keyCode, boolean coded)
+	public void onKeyEvent(KeyEvent event)
 	{
 		// When a key is pressed, creates a new generation of images
 		createNextGeneration();
-	}
-
-	@Override
-	public void onKeyReleased(char key, int keyCode, boolean coded)
-	{
-		// Does nothing
 	}
 
 	
@@ -125,8 +112,8 @@ public class ArtUpdater extends GameObject implements AdvancedKeyListener
 		// Removes the image (child) and temporarily disables the drawer
 		this.children.remove(drawer.getImage());
 		drawer.getImage().kill();
-		drawer.setInvisible();
-		drawer.inactivate();
+		drawer.getIsVisibleStateOperator().setState(false);
+		drawer.getIsActiveStateOperator().setState(false);
 	}
 	
 	private void createNextGeneration()
@@ -149,8 +136,8 @@ public class ArtUpdater extends GameObject implements AdvancedKeyListener
 			
 			FunctionDrawer drawer = this.drawers[drawerIndex];
 			drawer.setImage(image);
-			drawer.setVisible();
-			drawer.activate();
+			drawer.getIsVisibleStateOperator().setState(true);
+			drawer.getIsActiveStateOperator().setState(true);
 			
 			System.out.println("Child complexity: " + image.getComplexity());
 		}
